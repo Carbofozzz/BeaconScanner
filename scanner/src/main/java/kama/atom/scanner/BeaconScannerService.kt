@@ -55,6 +55,22 @@ class BeaconScannerService : LifecycleService(), BeaconScannerDelegate {
     private var job2: Job? = null
     private var job3: Job? = null
     private var listener: BeaconScannerListener? = null
+    private var bluetoothLeScanner: BluetoothLeScanner? = null
+
+    private val leScanCallback: ScanCallback = object : ScanCallback() {
+
+        @SuppressLint("MissingPermission")
+        override fun onScanResult(callbackType: Int, result: ScanResult) {
+            super.onScanResult(callbackType, result)
+            Log.d("BeaconService", "onScanResult $result")
+            processScan(result)
+        }
+
+        override fun onScanFailed(errorCode: Int) {
+            super.onScanFailed(errorCode)
+            Log.d("BeaconService", "onScanFailed $errorCode")
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -96,28 +112,14 @@ class BeaconScannerService : LifecycleService(), BeaconScannerDelegate {
                 val bluetoothManager: BluetoothManager? = getSystemService(BluetoothManager::class.java)
                 bluetoothManager?.adapter
             }
-            val bluetoothLeScanner = btAdapter?.bluetoothLeScanner
+            bluetoothLeScanner = btAdapter?.bluetoothLeScanner
             val filters = arrayListOf<ScanFilter>(
                 ScanFilter.Builder().build()
             )
             val settings = ScanSettings.Builder()
                 .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
                 .build()
-            val leScanCallback: ScanCallback = object : ScanCallback() {
-
-                @SuppressLint("MissingPermission")
-                override fun onScanResult(callbackType: Int, result: ScanResult) {
-                    super.onScanResult(callbackType, result)
-                    Log.d("BeaconService", "onScanResult $result")
-                    processScan(result)
-                }
-
-                override fun onScanFailed(errorCode: Int) {
-                    super.onScanFailed(errorCode)
-                    Log.d("BeaconService", "onScanFailed $errorCode")
-                }
-            }
-            startScan(bluetoothLeScanner, filters, settings, leScanCallback)
+            startScan(filters, settings, leScanCallback)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             try {
@@ -152,6 +154,15 @@ class BeaconScannerService : LifecycleService(), BeaconScannerDelegate {
 
     override fun stopScan() {
         Log.d("BeaconService", "stopScan")
+        job?.cancel()
+        job3?.cancel()
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.BLUETOOTH_SCAN
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            bluetoothLeScanner?.stopScan(leScanCallback)
+        }
         stopSelf()
     }
 
@@ -189,7 +200,6 @@ class BeaconScannerService : LifecycleService(), BeaconScannerDelegate {
     }
 
     private fun startScan(
-        bluetoothLeScanner: BluetoothLeScanner?,
         filters: ArrayList<ScanFilter>,
         settings: ScanSettings,
         leScanCallback: ScanCallback
@@ -208,7 +218,7 @@ class BeaconScannerService : LifecycleService(), BeaconScannerDelegate {
         job = lifecycleScope.launch {
             delay(10000)
             bluetoothLeScanner?.stopScan(leScanCallback)
-            startScan(bluetoothLeScanner, filters, settings, leScanCallback)
+            startScan(filters, settings, leScanCallback)
         }
         job3 = lifecycleScope.launch {
             delay(500)
