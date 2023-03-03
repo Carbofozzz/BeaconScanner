@@ -145,6 +145,7 @@ class BeaconScannerService : LifecycleService(), BeaconScannerDelegate {
     }
 
     override fun stopScan() {
+        Log.d("BeaconService", "stopScan")
         stopSelf()
     }
 
@@ -187,6 +188,7 @@ class BeaconScannerService : LifecycleService(), BeaconScannerDelegate {
         settings: ScanSettings,
         leScanCallback: ScanCallback
     ) {
+        Log.d("BeaconService", "startScan")
         if (ContextCompat.checkSelfPermission(
                 this,
                 Manifest.permission.BLUETOOTH_SCAN
